@@ -540,12 +540,13 @@ def extend_path(path, name):
         # It looks for a file named "zope.app.pkg"
         pkgfile = os.path.join(dir, sname_pkg)
         if os.path.isfile(pkgfile):
-            try:
-                f = open(pkgfile)
-            except IOError, msg:
-                sys.stderr.write("Can't open %s: %s\n" %
-                                 (pkgfile, msg))
-            else:
+            #try:
+            f = open(pkgfile)
+            # except IOError, msg:
+            #     print(str(pkgfile) + "  " + str(msg))
+            #     sys.stderr.write("Can't open %s: %s\n" %
+            #                      (pkgfile, msg))
+        else:
                 for line in f:
                     line = line.rstrip('\n')
                     if not line or line.startswith('#'):
