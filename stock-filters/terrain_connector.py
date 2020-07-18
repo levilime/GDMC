@@ -10,27 +10,31 @@ from utilityFunctions import setBlock
 
 
 inputs = (
-	("size", 256), # the material we want to use to build the mass of the structures
+	("name", "string"),
+    ("minx", 0),
+    ("miny", 0),
+    ("minz", 0),
+    ("maxx", 0),
+    ("maxy", 0),
+    ("maxz", 0)
 	)
 
 COMPETITION_BOX = 256
-
-input_file = "..\\GDMCcommunicationbucket\\terrain.pickle"
-output_file = "..\\GDMCcommunicationbucket\\changes.pickle"
+CENTRE_SELECTION = False
+OPTION_SELECTION = False
 
 path_to_python = "C:\\Users\\Levi\\Code\\thesis\\terrain-analyzer\\venv\\Scripts\\python.exe"
 
-def perform(level, box, options):
-    COMPETITION_BOX = options["size"]
+def input_output(name):
+    return "C:\\Users\\Levi\\Code\\thesis\\GDMCcommunicationbucket\\terrain" + name + ".pickle", \
+           "C:\\Users\\Levi\\Code\\thesis\\GDMCcommunicationbucket\\addtoterrain-" + name + ".pickle", \
+           "C:\\Users\\Levi\\Code\\thesis\\GDMCcommunicationbucket\\removefromterrain-" + name + ".pickle"
+
+def get_box_around_centre_of_selection(level, box):
     x = int(math.floor((box.minx + box.maxx) / 2))
     y = int(math.floor((box.miny + box.maxy) / 2))
     z = int(math.floor((box.minz + box.maxz) / 2))
     half_size = int(COMPETITION_BOX / 2)
-
-    print(box)
-
-    terrain_inside_box = {}
-
     terrain = np.zeros((COMPETITION_BOX, COMPETITION_BOX, COMPETITION_BOX))
 
     count = 0
@@ -40,111 +44,137 @@ def perform(level, box, options):
             coord[0] - x + half_size, coord[1] - y + half_size, coord[2] - z + half_size] = level.blockAt(*coord)
         if count % 256 ** 2 == 0:
             print(count)
+    return terrain
 
-    os.chdir("..\\terrain-analyzer")
+class MyBox:
+    def __init__(self, minx, miny, minz, maxx, maxy, maxz):
+        self.minx = minx
+        self.miny = miny
+        self.minz = minz
+        self.maxx = maxx
+        self.maxy = maxy
+        self.maxz = maxz
 
+
+def perform(level, default_box, options):
+    box = None
+    if OPTION_SELECTION:
+        box = MyBox(options["minx"], options["miny"], options["minz"],
+                    options["maxx"], options["maxy"], options["maxz"])
+    if box is None:
+        box = default_box
+    if CENTRE_SELECTION:
+        terrain = get_box_around_centre_of_selection(level, box)
+        x = int(math.floor((box.minx + box.maxx) / 2))
+        y = int(math.floor((box.miny + box.maxy) / 2))
+        z = int(math.floor((box.minz + box.maxz) / 2))
+        half_size = int(COMPETITION_BOX / 2)
+
+        minx = x - half_size
+        miny = y - half_size
+        minz = z - half_size
+    else:
+        x = box.maxx - box.minx
+        y = box.maxy - box.miny
+        z = box.maxz - box.minz
+        terrain = np.zeros((x, y, z), dtype=np.uint8)
+        terrain_data_annotation = np.zeros((x, y, z), dtype=np.uint8)
+
+        minx = box.minx
+        miny = box.miny
+        minz = box.minz
+
+        count = 0
+        for coord in product(*map(lambda t: range(t[0], t[1]),
+                                  [(box.minx, box.maxx), (box.miny, box.maxy), (box.minz, box.maxz)])):
+            count += 1
+            terrain[
+                coord[0] - box.minx, coord[1] - box.miny, coord[2] - box.minz] = level.blockAt(*coord)
+            terrain_data_annotation[
+                coord[0] - box.minx, coord[1] - box.miny, coord[2] - box.minz] = level.blockDataAt(*coord)
+            if count % 256 ** 2 == 0:
+                print(count)
+    #
+
+
+    os.chdir("C:\\Users\\Levi\\Code\\thesis\\terrain-analyzer")
+    input_file = input_output(options["name"])[0]
+    add_to_terrain_filename = input_output(options["name"])[1]
+    remove_from_terrain_filename = input_output(options["name"])[2]
     with open(input_file, "wb") as f:
         pickle.dump({"box_size": {"x": COMPETITION_BOX, "y": COMPETITION_BOX, "z": COMPETITION_BOX},
-                     "terrain": terrain}, f)
-
+                         "terrain": terrain, "terrain_data_annotation": terrain_data_annotation}, f)
     print("exists: " + str(os.path.exists("gdmcconnector.py")))
 
-    call([path_to_python, "gdmcconnector.py", input_file, output_file])
+    call([path_to_python, "gdmcconnector.py", input_file, add_to_terrain_filename, remove_from_terrain_filename])
 
-    logfile = open('logfile', 'w')
-    proc = Popen([path_to_python, "gdmcconnector.py", input_file, output_file], stdout=PIPE, stderr=STDOUT)
-    for line in proc.stdout:
-        print(line)
-        logfile.write(line)
-    proc.wait()
+    with open(add_to_terrain_filename, "rb") as f:
+        add_to_terrain = pickle.load(f)
+    with open(remove_from_terrain_filename, "rb") as f:
+        remove_from_terrain = pickle.load(f)
 
-    with open(output_file, "rb") as f:
-        segments = pickle.load(f)
+    # print(list(changes[(0,0,0)]))
 
-    # def convert_all_keys(dictionary, conversion_f):
-    #     if type(dictionary) is dict:
-    #         return dict((conversion_f(k), convert_all_keys(dictionary, conversion_f)) for k, v in dictionary.iteritems())
-    #     else:
-    #         return conversion_f(dictionary)
+    change_t = {23: 64,
+     252: 1,
+     246: 5,
+     37: 20,
+     192: 59,
+     96: 3,
+     6:50,
+                17: 53}
+
+    for t in remove_from_terrain:
+        setBlock(level, (0, 0),
+                 t[0] + box.minx,
+                 t[1] + box.miny,
+                 t[2] + box.minz
+                 )
+
+    for t in add_to_terrain:
+        setBlock(level, (1, 0),
+                 t[0] + box.minx,
+                 t[1] + box.miny,
+                 t[2] + box.minz
+                 )
+
+    # for index in changes:
+    #     # remove, blocks, set blocks to air
+    #     if changes[index][u's']:
+    #         setBlock(level, (0, 0),
+    #                          index[0] + box.minx,
+    #                          index[1] + box.miny,
+    #                          index[2] + box.minz
+    #                 )
     #
-    # segments = map(lambda segment: convert_all_keys(segment, lambda x: x.encode()), segments)
+    #     if not changes[index][u'a'] == 0:
+    #
+    #         # add blocks
+    #         setBlock(level, (change_t[changes[index][u'a']] if changes[index][u'a'] in change_t else changes[index][u'a'], 0),
+    #                  index[0] + box.minx,
+    #                  index[1] + box.miny,
+    #                  index[2] + box.minz
+    #         )
+    os.chdir("..\\..\\GDMC")
 
-    os.chdir("../GDMC")
+    #     addition_matrix = changes["addition_matrix"]
+    #     addition_matrix_type = changes["addition_matrix_type"]
+    #     substraction_matrix = changes["substraction_matrix"]
+    #
+    # it = np.nditer(addition_matrix, flags=['multi_index'])
+    # while not it.finished:
+    #     index = it.multi_index
+    #     if substraction_matrix[index]:
+    #         setBlock(level, (0, 0),
+    #                  index[0] + box.minx,
+    #                  index[1] + box.miny,
+    #                  index[2] + box.minz
+    #         )
+    #     if not int(it[0]) == 0:
+    #         setBlock(level, (int(it[0]), addition_matrix_type[it.multi_index]),
+    #                  index[0] + box.minx,
+    #                  index[1] + box.miny,
+    #                  index[2] + box.minz
+    #         )
+    #     it.iternext()
 
-    for segment in segments:
-        changed_voxels = segment[u"changed_voxels"]
-        overlapping_voxels = segment[u"overlapping_voxels"]
-        print "amount of changed voxels: " + str(len(changed_voxels))
-        print "amount of overlapping voxels: " + str(len(overlapping_voxels))
-        count = 1
-
-        lowest = 9000, 9000, 9000
-        highest = 0, 0, 0
-
-        for changed_voxel in changed_voxels:
-            current = (changed_voxel[u"x"], changed_voxel[u"y"],changed_voxel[u"z"])
-            if reduce(lambda current, t: t[1] > highest[t[0]] and current,
-                      enumerate(current), True):
-                highest = current
-            if reduce(lambda current, t: t[1] < lowest[t[0]] and current,
-                      enumerate(current), True):
-                lowest = current
-
-        print(x - half_size, y - half_size, z - half_size)
-        print "changed voxels"
-        print "highest: " + str(highest)
-        print "lowest: " + str(lowest)
-        print "average_height: " + str(segment[u"average_height"])
-
-        for changed_voxel in overlapping_voxels:
-            current = (changed_voxel[u"x"], changed_voxel[u"y"],changed_voxel[u"z"])
-            if reduce(lambda current, t: t[1] > highest[t[0]] and current,
-                      enumerate(current), True):
-                highest = current
-            if reduce(lambda current, t: t[1] < lowest[t[0]] and current,
-                      enumerate(current), True):
-                lowest = current
-
-        print(x - half_size, y - half_size, z - half_size)
-        print "overlapping voxels"
-        print "highest: " + str(highest)
-        print "lowest: " + str(lowest)
-        print "average_height: " + str(segment[u"average_height"])
-
-        # lowest_with_adjustement = \
-        #     lowest[0] + x - half_size,\
-        #     lowest[1] + segment[u"average_height"] + (y - half_size),\
-        #     lowest[2] + z - half_size
-        #
-        # highest_with_adjustement = \
-        #     highest[0] + x - half_size, \
-        #     highest[1] + segment[u"average_height"] + (y - half_size), \
-        #     highest[2] + z - half_size
-        #
-        #
-        # for empty_place in product(*map(lambda t: range(t[0], t[1])
-        #         , zip(lowest_with_adjustement, highest_with_adjustement))):
-        #     setBlock(level, (0, 0),
-        #              *empty_place)
-
-        for empty_place in overlapping_voxels:
-        #     print((empty_place[0] + x - half_size,
-        #              empty_place[1] + segment[u"average_height"] + (y - half_size),
-        #              empty_place[2] + z - half_size))
-            setBlock(level, (0, 0),
-                     empty_place[u"x"] + x - half_size,
-                     empty_place[u"y"] + segment[u"average_height"] + (y - half_size),
-                     empty_place[u"z"] + z - half_size)
-
-        print(x - half_size, y - half_size, z - half_size)
-        print "highest: " + str(highest)
-        print "lowest: " + str(lowest)
-        print "average_height: " + str(segment[u"average_height"])
-
-        for changed_voxel in changed_voxels:
-            if not int(changed_voxel[u"value"]) == 0:
-                setBlock(level,  (changed_voxel[u"value"], 0),
-                         changed_voxel[u"x"] + x - half_size,
-                         changed_voxel[u"y"] + segment[u"average_height"] + (y - half_size),
-                         changed_voxel[u"z"] + z - half_size)
-                count = count + 1
