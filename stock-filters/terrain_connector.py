@@ -97,7 +97,7 @@ def perform(level, default_box, options):
                     options["maxx"], options["maxy"], options["maxz"])
 
 
-    os.chdir("C:\\Users\\Levi\\Code\\thesis\\terrain-analyzer")
+    os.chdir("..\\mc-terrain-analyzer")
     input_file = input_output(options["name"], options["path"])[0]
     add_to_terrain_filename = input_output(options["name"], options["path"])[1]
     remove_from_terrain_filename = input_output(options["name"], options["path"])[2]
