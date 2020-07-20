@@ -167,7 +167,7 @@ def perform(level, default_box, options):
                      t[2] + box.minz
                      )
         elif t[3] == 112:
-            setBlock(level, (48, 0),
+            setBlock(level, (43, 0),
                      t[0] + box.minx,
                      t[1] + box.miny,
                      t[2] + box.minz
