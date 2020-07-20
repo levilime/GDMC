@@ -11,12 +11,8 @@ from utilityFunctions import setBlock
 
 inputs = (
 	("name", "string"),
-    ("minx", 0),
-    ("miny", 0),
-    ("minz", 0),
-    ("maxx", 0),
-    ("maxy", 0),
-    ("maxz", 0)
+    ("path", "string"),
+    ("solvingtimeinseconds","string")
 	)
 
 COMPETITION_BOX = 256
@@ -24,11 +20,11 @@ CENTRE_SELECTION = False
 OPTION_SELECTION = False
 
 path_to_python = "C:\\Users\\Levi\\Code\\thesis\\terrain-analyzer\\venv\\Scripts\\python.exe"
-
-def input_output(name):
-    return "C:\\Users\\Levi\\Code\\thesis\\GDMCcommunicationbucket\\terrain" + name + ".pickle", \
-           "C:\\Users\\Levi\\Code\\thesis\\GDMCcommunicationbucket\\addtoterrain-" + name + ".pickle", \
-           "C:\\Users\\Levi\\Code\\thesis\\GDMCcommunicationbucket\\removefromterrain-" + name + ".pickle"
+# C:\\Users\\Levi\\Code\\thesis\\GDMCcommunicationbucket
+def input_output(name, path):
+    return path +"\\terrain" + name + ".pickle", \
+           path + "\\addtoterrain-" + name + ".pickle", \
+           path + "\\removefromterrain-" + name + ".pickle"
 
 def get_box_around_centre_of_selection(level, box):
     x = int(math.floor((box.minx + box.maxx) / 2))
@@ -56,13 +52,7 @@ class MyBox:
         self.maxz = maxz
 
 
-def perform(level, default_box, options):
-    box = None
-    if OPTION_SELECTION:
-        box = MyBox(options["minx"], options["miny"], options["minz"],
-                    options["maxx"], options["maxy"], options["maxz"])
-    if box is None:
-        box = default_box
+def obtain_terrain(level, box, default_box):
     if CENTRE_SELECTION:
         terrain = get_box_around_centre_of_selection(level, box)
         x = int(math.floor((box.minx + box.maxx) / 2))
@@ -94,24 +84,38 @@ def perform(level, default_box, options):
                 coord[0] - box.minx, coord[1] - box.miny, coord[2] - box.minz] = level.blockDataAt(*coord)
             if count % 256 ** 2 == 0:
                 print(count)
-    #
+    return terrain
+
+def perform(level, default_box, options):
+    box = None
+    if box is None:
+        box = default_box
+    if OPTION_SELECTION:
+        box = MyBox(options["minx"], options["miny"], options["minz"],
+                    options["maxx"], options["maxy"], options["maxz"])
 
 
     os.chdir("C:\\Users\\Levi\\Code\\thesis\\terrain-analyzer")
-    input_file = input_output(options["name"])[0]
-    add_to_terrain_filename = input_output(options["name"])[1]
-    remove_from_terrain_filename = input_output(options["name"])[2]
+    input_file = input_output(options["name"], options["path"])[0]
+    add_to_terrain_filename = input_output(options["name"], options["path"])[1]
+    remove_from_terrain_filename = input_output(options["name"], options["path"])[2]
+    solving_time = options["solvingtimeinseconds"] if options["solvingtimeinseconds"] else 600
+
+
+    terrain = obtain_terrain(level, box, default_box)
     with open(input_file, "wb") as f:
-        pickle.dump({"box_size": {"x": COMPETITION_BOX, "y": COMPETITION_BOX, "z": COMPETITION_BOX},
-                         "terrain": terrain, "terrain_data_annotation": terrain_data_annotation}, f)
+        pickle.dump({"box_size": {"x": box.maxx - box.minx, "y": box.maxy - box.miny, "z": box.maxz - box.minz},
+                         "terrain": terrain, "terrain_data_annotation": {}}, f)
     print("exists: " + str(os.path.exists("gdmcconnector.py")))
+    call([path_to_python, "gdmcconnector.py", input_file, add_to_terrain_filename, remove_from_terrain_filename, solving_time])
 
-    call([path_to_python, "gdmcconnector.py", input_file, add_to_terrain_filename, remove_from_terrain_filename])
+    # with open(add_to_terrain_filename, "rb") as f:
+    #     add_to_terrain = pickle.load(f)
+    # with open(remove_from_terrain_filename, "rb") as f:
+    #     remove_from_terrain = pickle.load(f)
 
-    with open(add_to_terrain_filename, "rb") as f:
-        add_to_terrain = pickle.load(f)
-    with open(remove_from_terrain_filename, "rb") as f:
-        remove_from_terrain = pickle.load(f)
+    add_to_terrain = read_csv_tuple_list(add_to_terrain_filename)
+    remove_from_terrain = read_csv_tuple_list(remove_from_terrain_filename)
 
     # print(list(changes[(0,0,0)]))
 
@@ -131,50 +135,64 @@ def perform(level, default_box, options):
                  t[2] + box.minz
                  )
 
+    current_material = 1
     for t in add_to_terrain:
-        setBlock(level, (1, 0),
-                 t[0] + box.minx,
-                 t[1] + box.miny,
-                 t[2] + box.minz
-                 )
+        if t[3] == 67 or t[3] == 68 or t[3] == 69 or t[3] == 70:
+            setBlock(level, (53, t[3] % 67),
+                     t[0] + box.minx,
+                     t[1] + box.miny,
+                     t[2] + box.minz
+                     )
+        elif t[3] == 45 or t[3] == 46 or t[3] == 47:
+            setBlock(level, (44, t[3] % 44),
+                     t[0] + box.minx,
+                     t[1] + box.miny,
+                     t[2] + box.minz
+                     )
+        elif t[3] == 131:
+            setBlock(level, (193, 0),
+                     t[0] + box.minx,
+                     t[1] + box.miny,
+                     t[2] + box.minz
+                     )
+            setBlock(level, (193, 8),
+                     t[0] + box.minx,
+                     t[1] + box.miny + 1,
+                     t[2] + box.minz
+                     )
+        elif t[3] == 111:
+            setBlock(level, (45, 0),
+                     t[0] + box.minx,
+                     t[1] + box.miny ,
+                     t[2] + box.minz
+                     )
+        elif t[3] == 112:
+            setBlock(level, (48, 0),
+                     t[0] + box.minx,
+                     t[1] + box.miny,
+                     t[2] + box.minz
+                     )
+        elif t[3] == 216:
+            setBlock(level, (50, 5),
+                     t[0] + box.minx,
+                     t[1] + box.miny,
+                     t[2] + box.minz
+                     )
+        elif t[3] == 9 or t[3] == 246:
+            setBlock(level, (current_material, 0),
+                     t[0] + box.minx,
+                     t[1] + box.miny,
+                     t[2] + box.minz
+                     )
+        else:
+            current_material = t[3]
+            setBlock(level, (t[3], 0),
+                     t[0] + box.minx,
+                     t[1] + box.miny,
+                     t[2] + box.minz
+                     )
+    os.chdir("C:\\Users\\Levi\\Code\\thesis\\GDMC")
 
-    # for index in changes:
-    #     # remove, blocks, set blocks to air
-    #     if changes[index][u's']:
-    #         setBlock(level, (0, 0),
-    #                          index[0] + box.minx,
-    #                          index[1] + box.miny,
-    #                          index[2] + box.minz
-    #                 )
-    #
-    #     if not changes[index][u'a'] == 0:
-    #
-    #         # add blocks
-    #         setBlock(level, (change_t[changes[index][u'a']] if changes[index][u'a'] in change_t else changes[index][u'a'], 0),
-    #                  index[0] + box.minx,
-    #                  index[1] + box.miny,
-    #                  index[2] + box.minz
-    #         )
-    os.chdir("..\\..\\GDMC")
-
-    #     addition_matrix = changes["addition_matrix"]
-    #     addition_matrix_type = changes["addition_matrix_type"]
-    #     substraction_matrix = changes["substraction_matrix"]
-    #
-    # it = np.nditer(addition_matrix, flags=['multi_index'])
-    # while not it.finished:
-    #     index = it.multi_index
-    #     if substraction_matrix[index]:
-    #         setBlock(level, (0, 0),
-    #                  index[0] + box.minx,
-    #                  index[1] + box.miny,
-    #                  index[2] + box.minz
-    #         )
-    #     if not int(it[0]) == 0:
-    #         setBlock(level, (int(it[0]), addition_matrix_type[it.multi_index]),
-    #                  index[0] + box.minx,
-    #                  index[1] + box.miny,
-    #                  index[2] + box.minz
-    #         )
-    #     it.iternext()
-
+def read_csv_tuple_list(location):
+    f = open(location, "r")
+    return map(lambda t: tuple(map(int, t.split(","))), f.readlines())
