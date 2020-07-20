@@ -1,9 +1,8 @@
 import math
 import os
-import sys
-from itertools import product, islice
+from itertools import product
 import pickle
-from subprocess import call, Popen, PIPE, STDOUT
+from subprocess import call
 
 import numpy as np
 from utilityFunctions import setBlock
@@ -12,6 +11,7 @@ from utilityFunctions import setBlock
 inputs = (
 	("name", "string"),
     ("path", "string"),
+    ("pathtopython3", "string"),
     ("solvingtimeinseconds","string")
 	)
 
@@ -19,7 +19,7 @@ COMPETITION_BOX = 256
 CENTRE_SELECTION = False
 OPTION_SELECTION = False
 
-path_to_python = "C:\\Users\\Levi\\Code\\thesis\\terrain-analyzer\\venv\\Scripts\\python.exe"
+ # "C:\\Users\\Levi\\Code\\thesis\\terrain-analyzer\\venv\\Scripts\\python.exe"
 # C:\\Users\\Levi\\Code\\thesis\\GDMCcommunicationbucket
 def input_output(name, path):
     return path +"\\terrain" + name + ".pickle", \
@@ -87,6 +87,8 @@ def obtain_terrain(level, box, default_box):
     return terrain
 
 def perform(level, default_box, options):
+    path_to_python = options["pathtopython3"]
+    current_path = os.getcwd()
     box = None
     if box is None:
         box = default_box
@@ -191,7 +193,7 @@ def perform(level, default_box, options):
                      t[1] + box.miny,
                      t[2] + box.minz
                      )
-    os.chdir("C:\\Users\\Levi\\Code\\thesis\\GDMC")
+    os.chdir(current_path)
 
 def read_csv_tuple_list(location):
     f = open(location, "r")
