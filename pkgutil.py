@@ -374,11 +374,11 @@ def get_importer(path_item):
     The cache (or part of it) can be cleared manually if a
     rescan of sys.path_hooks is necessary.
     """
-    if type(path_item) == unicode:
-        path_item = path_item.encode(sys.getfilesystemencoding())
     try:
+        if type(path_item) == unicode:
+            path_item = path_item.encode(sys.getfilesystemencoding())
         importer = sys.path_importer_cache[path_item]
-    except KeyError:
+    except:
         for path_hook in sys.path_hooks:
             try:
                 importer = path_hook(path_item)

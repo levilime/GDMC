@@ -19,8 +19,8 @@ COMPETITION_BOX = 256
 CENTRE_SELECTION = False
 OPTION_SELECTION = False
 
- # "C:\\Users\\Levi\\Code\\thesis\\terrain-analyzer\\venv\\Scripts\\python.exe"
-# C:\\Users\\Levi\\Code\\thesis\\GDMCcommunicationbucket
+default_python_path = "C:\\Users\\Levi\\Code\\thesis\\terrain-analyzer\\venv\\Scripts\\python.exe"
+default_bucket_path = "C:\\Users\\Levi\\Code\\thesis\\GDMCcommunicationbucket"
 def input_output(name, path):
     return path +"\\terrain" + name + ".pickle", \
            path + "\\addtoterrain-" + name + ".pickle", \
@@ -87,7 +87,11 @@ def obtain_terrain(level, box, default_box):
     return terrain
 
 def perform(level, default_box, options):
-    path_to_python = options["pathtopython3"]
+    if not options["pathtopython3"]:
+        options["pathtopython3"] = default_python_path
+    if not options["path"]:
+        options["path"] = default_bucket_path
+    path_to_python = options["pathtopython3"] if options["pathtopython3"] else default_python_path
     current_path = os.getcwd()
     box = None
     if box is None:
@@ -163,9 +167,9 @@ def perform(level, default_box, options):
                      t[2] + box.minz
                      )
         elif t[3] == 111:
-            setBlock(level, (45, 0),
+            setBlock(level, (98, 0),
                      t[0] + box.minx,
-                     t[1] + box.miny ,
+                     t[1] + box.miny,
                      t[2] + box.minz
                      )
         elif t[3] == 112:
